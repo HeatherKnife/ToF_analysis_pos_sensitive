@@ -76,17 +76,17 @@ void Tree_generation(const TString& inputFilename, const TString& outputFilename
 
     // Mapping channel numbers to detector indices
     std::map<UChar_t, int> channelToDetectorIndex;
-    for (int i = 0; i <= 20; ++i) {
-        if (i == 15) continue;  // Skip channel 15 if it's not used
+    for (int i = 1; i <= 23; ++i) {
+        if (i == 15 || i == 19) continue;  // Skip channel 15 if it's not used
         channelToDetectorIndex[i] = i; // Assuming channels 0-14 and 16-21 directly map to detectors 0-20
     }
 
     // Define channels for other measurements
-    const UChar_t channel_MCP_1 = 26;
-    const UChar_t channel_X1 = 25;
-    const UChar_t channel_X2 = 24;    
-    const UChar_t channel_Y1 = 23;
-    const UChar_t channel_Y2 = 22;
+    const UChar_t channel_MCP_1 = 28;
+    const UChar_t channel_X1 = 27;
+    const UChar_t channel_X2 = 26;    
+    const UChar_t channel_Y1 = 25;
+    const UChar_t channel_Y2 = 24;
 
     UChar_t coincidence_group_counter;
 
@@ -105,9 +105,9 @@ void Tree_generation(const TString& inputFilename, const TString& outputFilename
     ABCD_events->SetBranchAddress("channel",   channels);
     ABCD_events->SetBranchAddress("group_counter", group_counters);
 
-    // const Double_t ch_to_ns = (25.64.)*(1e-3);
+    const Double_t ch_to_ns = (25./64.)*(1e-3);
 
-    const Double_t ch_to_ns = 1.0e9 / 5e9 / 256;
+    // const Double_t ch_to_ns = 1.0e9 / 5e9 / 256;
     // const Double_t ch_to_ns_2 = 1.0e9 / 5e9 / 256;
     // const Double_t ch_to_ns_2 = 1.0e9 / 2.5e9 / 256;
     const Double_t ns_to_mm = 1/(2*0.75); // 1 mm / 0.75 ns
@@ -125,11 +125,11 @@ void Tree_generation(const TString& inputFilename, const TString& outputFilename
         // Identify channels and timestamps.
         for (size_t inner = 0; inner < coincidence_group_counter; inner++) {
             switch (channels[inner]) {
-                case 26: found_MCP_1 = true; timestamp_MCP_1 = timestamps[inner]; break;
-                case 25: found_X1 = true; timestamp_X1 = timestamps[inner]; break;
-                case 24: found_X2 = true; timestamp_X2 = timestamps[inner]; break;
-                case 23: found_Y1 = true; timestamp_Y1 = timestamps[inner]; break;
-                case 22: found_Y2 = true; timestamp_Y2 = timestamps[inner]; break;
+                case 28: found_MCP_1 = true; timestamp_MCP_1 = timestamps[inner]; break;
+                case 27: found_X1 = true; timestamp_X1 = timestamps[inner]; break;
+                case 26: found_X2 = true; timestamp_X2 = timestamps[inner]; break;
+                case 25: found_Y1 = true; timestamp_Y1 = timestamps[inner]; break;
+                case 24: found_Y2 = true; timestamp_Y2 = timestamps[inner]; break;
                 default:
                     if (channels[inner] < numDetectors) {
                         found_Si[channels[inner]] = true;
