@@ -9,6 +9,8 @@
 #include <TLatex.h>
 #include <TCanvas.h>
 #include <TStyle.h>
+#include <iostream>
+#include <map>
 
 void Tree_generation(const TString& inputFilename, const TString& outputFilename) {
 
@@ -33,17 +35,14 @@ void Tree_generation(const TString& inputFilename, const TString& outputFilename
         myFile->Close();
         return;
     }
-    
-    int numDetectors = 21;
+
+    int numDetectors = 22;
 
     // Create a vector of TTrees.
     std::vector<TTree*> resultsTrees;
-    for (int i = 0; i < numDetectors; i++) {
+    for (int i = 0; i < numDetectors; i++) {  
         resultsTrees.push_back(new TTree(Form("results_Si%d", i), Form("Analysis Results for Si %d", i)));
     }
-
-    // Define variables to hold the data for each branch
-    // Double_t time_difference_X, time_difference_Y, tof, pos_x, pos_y, ph_Si0;
 
     // Define variables for branches.
     
@@ -60,7 +59,7 @@ void Tree_generation(const TString& inputFilename, const TString& outputFilename
     std::vector<Double_t> ph_Si(numDetectors);
 
     // Create branches for MCP and Si detectors.
-    for (int i = 0; i < numDetectors; i++) {
+    for (int i = 0; i < numDetectors; i++) {  
         resultsTrees[i]->Branch("ph_MCP", &ph_MCP);
         resultsTrees[i]->Branch("ph_X1", &ph_X1);
         resultsTrees[i]->Branch("ph_X2", &ph_X2);
@@ -72,13 +71,6 @@ void Tree_generation(const TString& inputFilename, const TString& outputFilename
         resultsTrees[i]->Branch("time_difference_Y", &time_difference_Y[i]);
         resultsTrees[i]->Branch("tof", &tof[i]);
         resultsTrees[i]->Branch("ph_Si", &ph_Si[i]);
-    }
-
-    // Mapping channel numbers to detector indices
-    std::map<UChar_t, int> channelToDetectorIndex;
-    for (int i = 1; i <= 23; ++i) {
-        if (i == 15 || i == 19) continue;  // Skip channel 15 if it's not used
-        channelToDetectorIndex[i] = i; // Assuming channels 0-14 and 16-21 directly map to detectors 0-20
     }
 
     // Define channels for other measurements
@@ -125,11 +117,11 @@ void Tree_generation(const TString& inputFilename, const TString& outputFilename
         // Identify channels and timestamps.
         for (size_t inner = 0; inner < coincidence_group_counter; inner++) {
             switch (channels[inner]) {
-                case 28: found_MCP_1 = true; timestamp_MCP_1 = timestamps[inner]; break;
-                case 27: found_X1 = true; timestamp_X1 = timestamps[inner]; break;
-                case 26: found_X2 = true; timestamp_X2 = timestamps[inner]; break;
-                case 25: found_Y1 = true; timestamp_Y1 = timestamps[inner]; break;
-                case 24: found_Y2 = true; timestamp_Y2 = timestamps[inner]; break;
+                case channel_MCP_1: found_MCP_1 = true; timestamp_MCP_1 = timestamps[inner]; break;
+                case channel_X1: found_X1 = true; timestamp_X1 = timestamps[inner]; break;
+                case channel_X2: found_X2 = true; timestamp_X2 = timestamps[inner]; break;
+                case channel_Y1: found_Y1 = true; timestamp_Y1 = timestamps[inner]; break;
+                case channel_Y2: found_Y2 = true; timestamp_Y2 = timestamps[inner]; break;
                 default:
                     if (channels[inner] < numDetectors) {
                         found_Si[channels[inner]] = true;
@@ -141,7 +133,8 @@ void Tree_generation(const TString& inputFilename, const TString& outputFilename
         }
 
         // Compute values for detectors where all required signals were found.
-        for (int j = 0; j < numDetectors; j++) {
+        for (int j = 1; j < numDetectors+1; j++) {
+            // printf("\n j: %i", j );
             if (found_X1 && found_X2 && found_Y1 && found_Y2 && found_Si[j] && found_MCP_1) {
                 const Long64_t time_difference_int_X = (timestamp_X1 - timestamp_X2);
                 const Long64_t time_difference_int_Y = (timestamp_Y1 - timestamp_Y2);
@@ -150,11 +143,11 @@ void Tree_generation(const TString& inputFilename, const TString& outputFilename
                 time_difference_X[j] = time_difference_int_X * ch_to_ns;
                 time_difference_Y[j] = time_difference_int_Y * ch_to_ns;
                 tof[j] = TOF_int * ch_to_ns;
-
-                // std::cout << "Calculated for detector " << j << ": Time difference X = " << time_difference_X[j]
-                //           << ", Y = " << time_difference_Y[j] << ", TOF = " << tof[j] << std::endl;
-
-                resultsTrees[j]->Fill();
+                // if (j==1)
+                // {
+                //     printf("tof: %f", tof[j]);
+                // }
+                resultsTrees[j-1]->Fill();
             }
         }
     }
