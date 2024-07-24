@@ -10,7 +10,7 @@
 #include <TCanvas.h>
 #include <TStyle.h>
 
-void Tree_generation_vectorized(const TString& inputFilename) {
+void Tree_generation_vectorized(const TString& inputFilename, const TString& outputFilename) {
 
     // Open the file containing the tree.
 
@@ -34,7 +34,7 @@ void Tree_generation_vectorized(const TString& inputFilename) {
         return;
     }
     
-    int numDetectors = 21;
+    int numDetectors = 20;
 
     // Create a vector of TTrees.
     std::vector<TTree*> resultsTrees;
@@ -46,26 +46,19 @@ void Tree_generation_vectorized(const TString& inputFilename) {
     // Double_t time_difference_X, time_difference_Y, tof, pos_x, pos_y, ph_Si0;
 
     // Define variables for branches.
-    
-    Double_t ph_MCP;
-
-    Double_t ph_X1;
-    Double_t ph_X2;
-    Double_t ph_Y1;
-    Double_t ph_Y2;
 
     std::vector<Double_t> pos_x(numDetectors), pos_y(numDetectors);
     std::vector<Double_t> time_difference_X(numDetectors), time_difference_Y(numDetectors);
     std::vector<Double_t> tof(numDetectors);
-    std::vector<Double_t> ph_Si(numDetectors);
+    std::vector<Double_t> ph_Si(numDetectors), ph_MCP(numDetectors), ph_X1(numDetectors), ph_X2(numDetectors), ph_Y1(numDetectors), ph_Y2(numDetectors);
 
     // Create branches for MCP and Si detectors.
     for (int i = 0; i < numDetectors; i++) {
-        resultsTrees[i]->Branch("ph_MCP", &ph_MCP);
-        resultsTrees[i]->Branch("ph_X1", &ph_X1);
-        resultsTrees[i]->Branch("ph_X2", &ph_X2);
-        resultsTrees[i]->Branch("ph_Y1", &ph_Y1);
-        resultsTrees[i]->Branch("ph_Y2", &ph_Y2);
+        resultsTrees[i]->Branch("ph_MCP", &ph_MCP[i]);
+        resultsTrees[i]->Branch("ph_X1", &ph_X1[i]);
+        resultsTrees[i]->Branch("ph_X2", &ph_X2[i]);
+        resultsTrees[i]->Branch("ph_Y1", &ph_Y1[i]);
+        resultsTrees[i]->Branch("ph_Y2", &ph_Y2[i]);
         resultsTrees[i]->Branch("pos_x", &pos_x[i]);
         resultsTrees[i]->Branch("pos_y", &pos_y[i]);
         resultsTrees[i]->Branch("time_difference_X", &time_difference_X[i]);
@@ -76,17 +69,17 @@ void Tree_generation_vectorized(const TString& inputFilename) {
 
     // Mapping channel numbers to detector indices
     std::map<UChar_t, int> channelToDetectorIndex;
-    for (int i = 0; i <= 20; ++i) {
-        if (i == 15) continue;  // Skip channel 15 if it's not used
+    for (int i = 0; i <= numDetectors -1; ++i) {
+        // if (i == 15) continue;  // Skip channel 15 if it's not used
         channelToDetectorIndex[i] = i; // Assuming channels 0-14 and 16-21 directly map to detectors 0-20
     }
 
     // Define channels for other measurements
-    const UChar_t channel_MCP_1 = 26;
-    const UChar_t channel_X1 = 25;
-    const UChar_t channel_X2 = 24;    
-    const UChar_t channel_Y1 = 23;
-    const UChar_t channel_Y2 = 22;
+    const UChar_t channel_MCP_1 =  24;
+    const UChar_t channel_X1 = 20;
+    const UChar_t channel_X2 = 21;    
+    const UChar_t channel_Y1 = 22;
+    const UChar_t channel_Y2 = 23;
 
     UChar_t coincidence_group_counter;
 
@@ -105,36 +98,32 @@ void Tree_generation_vectorized(const TString& inputFilename) {
     ABCD_events->SetBranchAddress("channel",   channels);
     ABCD_events->SetBranchAddress("group_counter", group_counters);
 
-    // const Double_t ch_to_ns = (25.64.)*(1e-3);
-
-    const Double_t ch_to_ns = 1.0e9 / 5e9 / 256;
-    // const Double_t ch_to_ns_2 = 1.0e9 / 5e9 / 256;
-    // const Double_t ch_to_ns_2 = 1.0e9 / 2.5e9 / 256;
-    const Double_t ns_to_mm = 1/(2*0.75); // 1 mm / 0.75 ns
-    // const Double_t ns_to_mm = 1/1.24; // 1 mm / 1.24 ns
+    const Double_t ch_to_ns = (25./16.)*(1e-3);
+    // const Double_t ch_to_ns = 1.0e9 / 2.5e9 / 256;
 
     // Process each event.
     for (size_t i = 0; i < ABCD_events->GetEntries(); i++) {
         ABCD_events->GetEntry(i);
 
         bool found_X1 = false, found_X2 = false, found_Y1 = false, found_Y2 = false, found_MCP_1 = false;
-        Double_t timestamp_X1 = 0, timestamp_X2 = 0, timestamp_Y1 = 0, timestamp_Y2 = 0, timestamp_MCP_1 = 0;
+        Double_t timestamp_X1 = 0, timestamp_X2 = 0, timestamp_Y1 = 0, timestamp_Y2 = 0, timestamp_MCP_1 = 0, qlongs_MCP_1, qlongs_X1, qlongs_X2, qlongs_Y1, qlongs_Y2;
         std::vector<bool> found_Si(numDetectors, false);
         std::vector<Double_t> timestamp_Si(numDetectors, 0);
 
         // Identify channels and timestamps.
         for (size_t inner = 0; inner < coincidence_group_counter; inner++) {
             switch (channels[inner]) {
-                case 26: found_MCP_1 = true; timestamp_MCP_1 = timestamps[inner]; break;
-                case 25: found_X1 = true; timestamp_X1 = timestamps[inner]; break;
-                case 24: found_X2 = true; timestamp_X2 = timestamps[inner]; break;
-                case 23: found_Y1 = true; timestamp_Y1 = timestamps[inner]; break;
-                case 22: found_Y2 = true; timestamp_Y2 = timestamps[inner]; break;
+                case 24: found_MCP_1 = true; timestamp_MCP_1 = timestamps[inner]; qlongs_MCP_1 = qlongs[inner]; break;
+                case 20: found_X1 = true; timestamp_X1 = timestamps[inner]; qlongs_X1 = qlongs[inner]; break;
+                case 21: found_X2 = true; timestamp_X2 = timestamps[inner]; qlongs_X2 = qlongs[inner]; break;
+                case 22: found_Y1 = true; timestamp_Y1 = timestamps[inner]; qlongs_Y1 = qlongs[inner]; break;
+                case 23: found_Y2 = true; timestamp_Y2 = timestamps[inner]; qlongs_Y2 = qlongs[inner]; break;
                 default:
                     if (channels[inner] < numDetectors) {
                         found_Si[channels[inner]] = true;
                         timestamp_Si[channels[inner]] = timestamps[inner];
                         ph_Si[channels[inner]] = qlongs[inner];
+
                     }
                     break;
             }
@@ -150,6 +139,13 @@ void Tree_generation_vectorized(const TString& inputFilename) {
                 time_difference_X[j] = time_difference_int_X * ch_to_ns;
                 time_difference_Y[j] = time_difference_int_Y * ch_to_ns;
                 tof[j] = TOF_int * ch_to_ns;
+
+                ph_MCP[j] = qlongs_MCP_1;
+                ph_X1[j] = qlongs_X1;
+                ph_X2[j] = qlongs_X2;
+                ph_Y1[j] = qlongs_Y1;
+                ph_Y2[j] = qlongs_Y2;
+
 
                 // std::cout << "Calculated for detector " << j << ": Time difference X = " << time_difference_X[j]
                 //           << ", Y = " << time_difference_Y[j] << ", TOF = " << tof[j] << std::endl;
